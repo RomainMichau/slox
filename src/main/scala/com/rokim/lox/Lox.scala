@@ -1,14 +1,12 @@
 package com.rokim.lox
 
-import cats.data.Validated.Invalid
-import cats.data.Validated.Valid
-import cats.data.ValidatedNec
+import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
+import com.rokim.lox.Interpreter.InterpreterRuntimeError
 
-import java.io.{BufferedReader, InputStreamReader}
-import java.nio.charset.Charset
-import java.nio.file.{Files, Paths}
 import scala.io.{Source, StdIn}
 import scala.util.{Try, Using}
+
 
 case class LoxError(line: Int, where: String, message: String) {
   println(s"[line $line] Error $where : $message")
@@ -42,11 +40,41 @@ object Lox {
     loop()
   }
 
+
   def run(source: String): Unit = {
     Scanner.scan(source) match {
-      case Valid(tokens) => println(tokens)
-      case Invalid(e) => println(s"Scanner errors: ${e.toList.mkString}")
+      case Valid(tokens) =>
+//        println(s"Tokens: ${tokens.mkString(" ")}")
+        new Parser(tokens).parse() match {
+        case Valid(expr) =>
+//          println(s"expr: ${ExprPrinter.print(expr)}")
+          Interpreter.interprete(expr) match {
+            case Valid(r) =>
+            case Invalid(r) => printRuntimeErr(r)
+          }
+        case Invalid(e) => printParserErr(e)
+      }
+      case Invalid(e) => printScannerErr(e)
     }
+  }
+
+  private def printScannerErr(err: NonEmptyList[LoxError]): Unit = {
+    err.toList.foreach { error =>
+      System.err.println(s"[line ${error.line}] Error ${error.where}: ${error.message}")
+    }
+  }
+
+  private def printParserErr(err: NonEmptyList[String]): Unit = {
+    err.toList.foreach { error =>
+      System.err.println(s"Parse error: $error")
+    }
+  }
+
+  private def printRuntimeErr(err: NonEmptyList[InterpreterRuntimeError]): Unit = {
+    err.toList.foreach { error =>
+      System.err.println(error.message +
+        "\n[line " + error.token.line + "]")
+    };
   }
 
 }

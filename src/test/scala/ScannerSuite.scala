@@ -13,16 +13,16 @@ class ScannerSuite extends munit.FunSuite {
     result match {
       case Valid(tokens) =>
         assertEquals(tokens.size, 10)
-        assertEquals(tokens.head, LEFT_PAREN("(", 0))
-        assertEquals(tokens(1), RIGHT_PAREN(")", 0))
-        assertEquals(tokens(2), LEFT_BRACE("{", 0))
-        assertEquals(tokens(3), RIGHT_BRACE("}", 0))
-        assertEquals(tokens(4), COMMA(",", 0))
-        assertEquals(tokens(5), DOT(".", 0))
-        assertEquals(tokens(6), MINUS("-", 0))
-        assertEquals(tokens(7), PLUS("+", 0))
-        assertEquals(tokens(8), SEMICOLON(";", 0))
-        assertEquals(tokens(9), STAR("*", 0))
+        assertEquals(tokens.head, LEFT_PAREN(0))
+        assertEquals(tokens(1), RIGHT_PAREN(0))
+        assertEquals(tokens(2), LEFT_BRACE(0))
+        assertEquals(tokens(3), RIGHT_BRACE(0))
+        assertEquals(tokens(4), COMMA(0))
+        assertEquals(tokens(5), DOT(0))
+        assertEquals(tokens(6), MINUS(0))
+        assertEquals(tokens(7), PLUS(0))
+        assertEquals(tokens(8), SEMICOLON(0))
+        assertEquals(tokens(9), STAR(0))
       case cats.data.Validated.Invalid(errors) =>
         fail(s"Expected valid tokens but got errors: $errors")
     }
@@ -35,10 +35,10 @@ class ScannerSuite extends munit.FunSuite {
     result match {
       case Valid(tokens) =>
         assertEquals(tokens.size, 4)
-        assertEquals(tokens.head, BANG_EQUAL("!=", 0))
-        assertEquals(tokens(1), EQUAL_EQUAL("==", 0))
-        assertEquals(tokens(2), LESS_EQUAL("<=", 0))
-        assertEquals(tokens(3), GREATER_EQUAL(">=", 0))
+        assertEquals(tokens.head, BANG_EQUAL(0))
+        assertEquals(tokens(1), EQUAL_EQUAL(0))
+        assertEquals(tokens(2), LESS_EQUAL(0))
+        assertEquals(tokens(3), GREATER_EQUAL(0))
       case cats.data.Validated.Invalid(errors) =>
         fail(s"Expected valid tokens but got errors: $errors")
     }
@@ -51,10 +51,10 @@ class ScannerSuite extends munit.FunSuite {
     result match {
       case Valid(tokens) =>
         assertEquals(tokens.size, 4)
-        assertEquals(tokens.head, BANG("!", 0))
-        assertEquals(tokens(1), EQUAL("=", 0))
-        assertEquals(tokens(2), LESS("<", 0))
-        assertEquals(tokens(3), GREATER(">", 0))
+        assertEquals(tokens.head, BANG(0))
+        assertEquals(tokens(1), EQUAL(0))
+        assertEquals(tokens(2), LESS(0))
+        assertEquals(tokens(3), GREATER(0))
       case cats.data.Validated.Invalid(errors) =>
         fail(s"Expected valid tokens but got errors: $errors")
     }
@@ -67,7 +67,7 @@ class ScannerSuite extends munit.FunSuite {
     result match {
       case Valid(tokens) =>
         assertEquals(tokens.size, 1)
-        assertEquals(tokens.head, EQUAL("=", 0))
+        assertEquals(tokens.head, EQUAL(0))
       case cats.data.Validated.Invalid(errors) =>
         fail(s"Expected valid tokens but got errors: $errors")
     }
@@ -80,8 +80,8 @@ class ScannerSuite extends munit.FunSuite {
     result match {
       case Valid(tokens) =>
         assertEquals(tokens.size, 2)
-        assertEquals(tokens.head, SLASH("\\", 0))
-        assertEquals(tokens(1), PLUS("+", 1))
+        assertEquals(tokens.head, SLASH(0))
+        assertEquals(tokens(1), PLUS(1))
       case cats.data.Validated.Invalid(errors) =>
         fail(s"Expected valid tokens but got errors: $errors")
     }
@@ -94,10 +94,10 @@ class ScannerSuite extends munit.FunSuite {
     result match {
       case Valid(tokens) =>
         assertEquals(tokens.size, 4)
-        assertEquals(tokens.head, LEFT_PAREN("(", 0))
-        assertEquals(tokens(1), RIGHT_PAREN(")", 0))
-        assertEquals(tokens(2), LEFT_BRACE("{", 1))
-        assertEquals(tokens(3), RIGHT_BRACE("}", 1))
+        assertEquals(tokens.head, LEFT_PAREN(0))
+        assertEquals(tokens(1), RIGHT_PAREN(0))
+        assertEquals(tokens(2), LEFT_BRACE(1))
+        assertEquals(tokens(3), RIGHT_BRACE(1))
       case cats.data.Validated.Invalid(errors) =>
         fail(s"Expected valid tokens but got errors: $errors")
     }
@@ -137,7 +137,7 @@ class ScannerSuite extends munit.FunSuite {
       case Valid(tokens) =>
         fail(s"Expected error for unterminated string but got tokens: $tokens")
       case cats.data.Validated.Invalid(errors) =>
-        assertEquals(errors.size, 1L)
+        assertEquals(errors.size, 1)
         assert(errors.head.message.contains("Unterminated string"))
         assertEquals(errors.head.line, 0)
     }
@@ -197,9 +197,9 @@ class ScannerSuite extends munit.FunSuite {
     result match {
       case Valid(tokens) =>
         assertEquals(tokens.size, 3)
-        assertEquals(tokens.head, IF("if", 0))
-        assertEquals(tokens(1), ELSE("else", 0))
-        assertEquals(tokens(2), VAR("var", 0))
+        assertEquals(tokens.head, IF(0))
+        assertEquals(tokens(1), ELSE(0))
+        assertEquals(tokens(2), VAR(0))
       case cats.data.Validated.Invalid(errors) =>
         fail(s"Expected valid tokens but got errors: $errors")
     }
@@ -226,9 +226,9 @@ class ScannerSuite extends munit.FunSuite {
     result match {
       case Valid(tokens) =>
         assertEquals(tokens.size, 3)
-        assertEquals(tokens.head, IF("if", 0))
+        assertEquals(tokens.head, IF(0))
         assertEquals(tokens(1), IDENTIFIER("myVar", 0))
-        assertEquals(tokens(2), ELSE("else", 0))
+        assertEquals(tokens(2), ELSE(0))
       case cats.data.Validated.Invalid(errors) =>
         fail(s"Expected valid tokens but got errors: $errors")
     }
