@@ -24,6 +24,8 @@ object ExprPrinter {
     case Grouping(expr) => parenthesize("group", expr)
     case Literal(value) => value.toString
     case Unary(operator, right) => parenthesize(operator.lexeme, right)
+    case Assign(name, value) => parenthesize(s"assign ${name.lexeme}", value)
+    case Variable(i) => parenthesize(s"var ${i.lexeme}")
 }
 
 

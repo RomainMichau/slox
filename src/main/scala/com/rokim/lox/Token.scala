@@ -47,12 +47,12 @@ case class FOR(line: Int) extends Token { val lexeme = "for" }
 case class IF(line: Int) extends Token { val lexeme = "if" }
 case class NIL(line: Int) extends Token { val lexeme = "nil" }
 case class OR(line: Int) extends Token { val lexeme = "or" }
-case class PRINT(line: Int) extends Token { val lexeme = "print" }
+case class PRINT_TKN(line: Int) extends Token { val lexeme = "print" }
 case class RETURN(line: Int) extends Token { val lexeme = "return" }
 case class SUPER(line: Int) extends Token { val lexeme = "super" }
 case class THIS(line: Int) extends Token { val lexeme = "this" }
 case class TRUE(line: Int) extends Token { val lexeme = "true" }
-case class VAR(line: Int) extends Token { val lexeme = "var" }
+case class VAR_TKN(line: Int) extends Token { val lexeme = "var" }
 case class WHILE(line: Int) extends Token { val lexeme = "while" }
 
 case class EOF(line: Int) extends Token { val lexeme = "" }

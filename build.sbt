@@ -8,6 +8,11 @@ lazy val root = project
 
     scalaVersion := scala3Version,
 
+    scalacOptions ++= Seq(
+      "-Wunused:all",
+      "-Werror"
+    ),
+
     libraryDependencies ++= Seq(
       "org.scalameta" %% "munit" % "1.0.0" % Test,
       "org.typelevel" %% "cats-core" % "2.12.0"

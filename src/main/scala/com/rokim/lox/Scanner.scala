@@ -1,8 +1,7 @@
 package com.rokim.lox
 
-import cats.data.Validated.Valid
-import cats.data.{ValidatedNec, ValidatedNel}
-import cats.implicits.{catsSyntaxValidatedId, catsSyntaxValidatedIdBinCompat0}
+import cats.data.ValidatedNel
+import cats.implicits.catsSyntaxValidatedId
 
 object Scanner {
 
@@ -16,19 +15,17 @@ object Scanner {
     case "if" => IF(line)
     case "nil" => NIL(line)
     case "or" => OR(line)
-    case "print" => PRINT(line)
+    case "print" => PRINT_TKN(line)
     case "return" => RETURN(line)
     case "super" => SUPER(line)
     case "this" => THIS(line)
     case "true" => TRUE(line)
-    case "var" => VAR(line)
+    case "var" => VAR_TKN(line)
     case "while" => WHILE(line)
     case _ => IDENTIFIER(lexeme, line)
   }
 
   def scan(source: String): ValidatedNel[LoxError, Seq[Token]] = {
-    val sourceList = source.toList
-
     def loop(source: List[Char], acc: Seq[Token], line: Int): ValidatedNel[LoxError, Seq[Token]] = source match {
       case '(' :: tail => loop(tail, LEFT_PAREN(line) +: acc, line)
       case ')' :: tail => loop(tail, RIGHT_PAREN(line) +: acc, line)
@@ -58,7 +55,7 @@ object Scanner {
       }
       case '/' :: tail => tail match {
         case '/' :: rest =>
-          val (comment, rest2) = rest.span(_ != '\n')
+          val (_, rest2) = rest.span(_ != '\n')
           loop(rest2, acc, line)
         case _ => loop(tail, SLASH(line) +: acc, line)
       }
@@ -82,7 +79,7 @@ object Scanner {
           loop(rest, keywordOrIdentifier(s"$x${letter.mkString}", line) +: acc, line)
       }
       case Nil => (EOF(line) +: acc).validNel
-      case c :: tail => LoxError(line, "", s"Unexpected character: $c").invalidNel
+      case c :: _ => LoxError(line, "", s"Unexpected character: $c").invalidNel
     }
 
     loop(source.toList, Seq.empty, 0).map(_.reverse)

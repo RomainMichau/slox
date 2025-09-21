@@ -24,16 +24,21 @@ object Interpreter {
 
 
   def interprete(stmts: Seq[Stmt]) : ValidatedNel[InterpreterRuntimeError, Any] = {
-    val env = new Environment()
-    evaluate(stmts, env)
+    val env = Environment()
+    execute(stmts, env)
   }
 
-  private def evaluate(stmts: Seq[Stmt], env: Environment): ValidatedNel[InterpreterRuntimeError, Any] = {
+  private def execute(stmt: Stmt, env: Environment): ValidatedNel[InterpreterRuntimeError, Any] = {
+    execute(Seq(stmt), env)
+  }
+
+  private def execute(stmts: Seq[Stmt], env: Environment): ValidatedNel[InterpreterRuntimeError, Any] = {
     stmts.foldLeft[ValidatedNel[InterpreterRuntimeError, Any]](().validNel) { (acc, stmt) =>
       acc.andThen { _ =>
         stmt match {
           case Expression(expr) => evaluate(expr, env).map(_ => ())
-          case Print(expr) => evaluate(expr, env).map { value =>
+          case Print(expr) => 
+            evaluate(expr, env).map { value =>
             println(stringify(value))
             ()
           }
@@ -42,8 +47,18 @@ object Interpreter {
               case None => env.define(name, null).validNel
               case Some(v) => evaluate(v, env).map(env.define(name, _))
             }
+          case b: Block => executeBlock(b, env)
         }
       }
+    }
+  }
+
+  private def executeBlock(block: Block, parentEnv: Environment): ValidatedNel[InterpreterRuntimeError, Any] = {
+    val newEnv = parentEnv.childEnv()
+    val stmts = block.statements
+    stmts.headOption match {
+      case Some(head) =>     stmts.tail.foldLeft(execute(head, newEnv)){case (acc, stmt) => acc.andThen(_ => execute(stmt, newEnv))}
+      case None => ().validNel
     }
   }
   
@@ -101,7 +116,8 @@ object Interpreter {
           case _: EQUAL_EQUAL => (leftAna, rightAna).mapN((left, right) =>
             left == right)
         }
-      case Variable(name) => env.get(name) match {
+      case Variable(name) => 
+        env.get(name) match {
         case Some(value) => value.validNel
         case None => InterpreterRuntimeError(name, s"Unkown var ${name.lexeme}").invalidNel
       }

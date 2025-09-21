@@ -49,7 +49,7 @@ object Lox {
         new Parser(tokens).parse() match {
         case Valid(stmts) =>
           Interpreter.interprete(stmts) match {
-            case Valid(r) =>
+            case Valid(_) =>
             case Invalid(r) => printRuntimeErr(r)
           }
         case Invalid(e) => printParserErr(e)

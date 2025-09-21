@@ -199,7 +199,7 @@ class ScannerSuite extends munit.FunSuite {
         assertEquals(tokens.size, 3)
         assertEquals(tokens.head, IF(0))
         assertEquals(tokens(1), ELSE(0))
-        assertEquals(tokens(2), VAR(0))
+        assertEquals(tokens(2), VAR_TKN(0))
       case cats.data.Validated.Invalid(errors) =>
         fail(s"Expected valid tokens but got errors: $errors")
     }
