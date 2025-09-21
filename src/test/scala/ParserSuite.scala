@@ -2,14 +2,24 @@ package com.rokim.lox
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.ValidatedNel
+import com.rokim.lox.Parser.ParserError
+import cats.implicits.*
 
 class ParserSuite extends munit.FunSuite {
 
-  private def parseExpression(source: String): ValidatedNel[String, Expr] = {
-    Scanner.scan(source) match {
+  private def parseExpression(source: String): ValidatedNel[ParserError, Expr] = {
+    Scanner.scan(source + ";") match {
       case Valid(tokens) =>
-        val parser = Parser(tokens)
-        parser.parse()
+        val parser = new Parser(tokens :+ EOF(tokens.lastOption.map(_.line).getOrElse(1)))
+        parser.parse() match {
+          case Valid(stmts) if stmts.nonEmpty =>
+            stmts.head match {
+              case Expression(expr) => Valid(expr)
+              case other => ParserError(EOF(1), s"Expected expression statement, got: $other").invalidNel
+            }
+          case Valid(_) => ParserError(EOF(1), "No statements parsed").invalidNel
+          case Invalid(errors) => Invalid(errors)
+        }
       case Invalid(errors) =>
         fail(s"Scanner errors: ${errors.toList.mkString(", ")}")
     }
@@ -195,7 +205,7 @@ class ParserSuite extends munit.FunSuite {
     val result = parseExpression("1 +")
     result match {
       case Invalid(errors) =>
-        assert(errors.toList.head.contains("Expect expression"))
+        assert(errors.toList.head.message.contains("Expect expression"))
       case Valid(expr) => fail(s"Expected parse error but got: $expr")
     }
   }
@@ -204,7 +214,7 @@ class ParserSuite extends munit.FunSuite {
     val result = parseExpression("(1 + 2")
     result match {
       case Invalid(errors) =>
-        assert(errors.toList.head.contains("Expect ')' after expression"))
+        assert(errors.toList.head.message.contains("Expect ')' after expression"))
       case Valid(expr) => fail(s"Expected parse error but got: $expr")
     }
   }
@@ -213,7 +223,7 @@ class ParserSuite extends munit.FunSuite {
     val result = parseExpression("1 + + 2")
     result match {
       case Invalid(errors) =>
-        assert(errors.toList.head.contains("Expect expression"))
+        assert(errors.toList.head.message.contains("Expect expression"))
       case Valid(expr) => fail(s"Expected parse error but got: $expr")
     }
   }

@@ -1,14 +1,14 @@
 package com.rokim.lox
 
 import cats.implicits.*
-import cats.data.Validated.Valid
-import cats.data.ValidatedNel
+import cats.data.Validated.{Invalid, Valid}
+import cats.data.{Validated, ValidatedNel}
 import com.rokim.lox.Parser.{ExpressionParsing, ParserError, StmtParsing, StmtsParsing}
 
 import scala.annotation.tailrec
 
 object Parser {
-  type ParserError = String
+  case class ParserError(token: Token, message: String)
   type ExpressionParsing = ValidatedNel[ParserError, Expr]
   type StmtsParsing = ValidatedNel[ParserError, Seq[Stmt]]
   type StmtParsing = ValidatedNel[ParserError, Stmt]
@@ -18,31 +18,49 @@ class Parser(tokens: Seq[Token]) {
   private type TokenMatcher[T] = PartialFunction[Token, Option[T]]
   private var current = 0
 
+  def parserError(message: String): ParserError = {
+    ParserError(peek, message)
+  }
+
   /**
+   * Grammar Rules:
+   *
    * program        → statement* EOF ;
+   * declaration    → varDecl
+   *                | statement ;
+   * varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
    * statement      → exprStmt
-   * | printStmt ;
+   *                | printStmt ;
    * exprStmt       → expression ";" ;
    * printStmt      → "print" expression ";" ;
-   * expression → equality;
-   * equality → comparison(("!=" | "==") comparison) *;
-   * comparison → term((">" | ">=" | "<" | "<=") term) *;
-   * term → factor(("-" | "+") factor) *;
-   * factor → unary(("/" | "*") unary) *;
-   * unary → ("!" | "-") unary
-   * | primary;
-   * primary → NUMBER | STRING | "true" | "false" | "nil"
-   * | "(" expression ")";
-   * */
+   * expression     → assignment ;
+   * assignment     → IDENTIFIER "=" assignment
+   *                | equality ;
+   * equality       → comparison ( ("!=" | "==") comparison )* ;
+   * comparison     → term ( (">" | ">=" | "<" | "<=") term )* ;
+   * term           → factor ( ("-" | "+") factor )* ;
+   * factor         → unary ( ("/" | "*") unary )* ;
+   * unary          → ("!" | "-") unary
+   *                | primary ;
+   * primary        → NUMBER | STRING | "true" | "false" | "nil"
+   *                | "(" expression ")" | IDENTIFIER ;
+   */
 
 
   def parse(): StmtsParsing = {
     def loop(): StmtsParsing = {
       if(!isAtEnd) {
-        statement().andThen(s => loop().map(l => s +: l))
-      } else Nil.validNel
+        val dec = declaration().leftMap{e =>
+          synchronize()
+          e
+        }
+
+        (loop(), dec).mapN{case (l, e) => e +: l}
+      } else {
+        Nil.validNel
+      }
     }
-    loop().map(_.reverse)
+    loop()
   }
 
   private def synchronize(): Unit = {
@@ -85,14 +103,20 @@ class Parser(tokens: Seq[Token]) {
     }
   }
 
-  private def consume[T](matcher: TokenMatcher[T], expect: String): ValidatedNel[ParserError, Unit] = {
+  private def consume[T](matcher: TokenMatcher[T], expect: String): ValidatedNel[ParserError, T] = {
     check(matcher) match {
-      case Some(_) => advance()
-        Valid(())
-      case None => expect.invalidNel
+      case Some(t) => advance()
+        Valid(t)
+      case None => parserError(expect).invalidNel
     }
   }
 
+  private def declaration(): StmtParsing = {
+    matchToken({case a: VAR => Some(())})
+      .map(_ => varDeclaration())
+      .getOrElse(statement())
+  }
+  
   private def statement(): StmtParsing = {
     matchToken({ case a: PRINT => Some(a) }).map(_ => printStatement())
       .getOrElse(expressionStatement())
@@ -115,7 +139,31 @@ class Parser(tokens: Seq[Token]) {
   }
 
   private def expression(): ExpressionParsing = {
-    equality()
+    assignment()
+  }
+
+  private def assignment(): ExpressionParsing = {
+    equality().andThen {expr =>
+      matchToken({case e: EQUAL => Some(e)}).map{ equals =>
+        assignment().andThen { value =>
+            expr match {
+              case Variable(name) => Assign(name, value).validNel
+              case _ => ParserError(equals, "Invalid assignement").invalidNel
+            }
+        }
+      }.getOrElse(expr.validNel)
+    }
+  }
+  
+  private def varDeclaration(): StmtParsing = {
+    consume({case t: IDENTIFIER => Some(t)}, "expect var name").andThen { ident =>
+      matchToken({case t: EQUAL => Some(())}).map{ _ =>
+        expression().andThen {initializer =>
+          consume({case t: SEMICOLON => Some(t)}, "Expect ';' after var  declaration.")
+            .map(_ => Var(ident, Some(initializer)))
+        }
+      }.getOrElse(Var(ident).validNel)
+    }
   }
 
   private def equality(): ExpressionParsing = {
@@ -191,7 +239,7 @@ class Parser(tokens: Seq[Token]) {
 
   private def primary(): ExpressionParsing = {
     val matcher: TokenMatcher[Token] = {
-      case a@(_: NUMBER | _: STRING | _: FALSE | _: TRUE | _: NIL | _: LEFT_PAREN) => Some(a)
+      case a@(_: NUMBER | _: STRING | _: FALSE | _: TRUE | _: NIL | _: LEFT_PAREN | _: IDENTIFIER) => Some(a)
     }
 
     matchToken(matcher) match {
@@ -201,12 +249,24 @@ class Parser(tokens: Seq[Token]) {
         case _: FALSE => Literal(false).validNel
         case _: TRUE => Literal(true).validNel
         case _: NIL => Literal(null).validNel
+        case i: IDENTIFIER => Variable(i).validNel
         case _: LEFT_PAREN =>
           expression().andThen(expr =>
             consume({ case a: RIGHT_PAREN => Some(a) }, "Expect ')' after expression.").map(_ => Grouping(expr))
           )
       }
-      case None => "Expect expression".invalidNel
+      case None => parserError("Expect expression").invalidNel
     }
   }
 }
+
+//object Test {
+//  import cats.implicits._
+//  def main(args: Array[ParserError]): Unit = {
+//    val v1 = Validated.validNel(1)
+//    val v2 = Validated.validNel(2)
+//    val i1 = "error1".invalidNel
+//    val i2 = "error2".invalidNel
+//    println((v1, i2).mapN{case(a, b) => a.toString + b.toString})
+//  }
+//}

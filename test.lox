@@ -1,0 +1,5 @@
+var b = true == false;
+var a = 14 * 234;
+var c = "yo";
+c = 2;
+print c + a;

@@ -3,6 +3,7 @@ package com.rokim.lox
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import com.rokim.lox.Interpreter.InterpreterRuntimeError
+import com.rokim.lox.Parser.ParserError
 
 import scala.io.{Source, StdIn}
 import scala.util.{Try, Using}
@@ -44,11 +45,10 @@ object Lox {
   def run(source: String): Unit = {
     Scanner.scan(source) match {
       case Valid(tokens) =>
-//        println(s"Tokens: ${tokens.mkString(" ")}")
+        println(s"Tokens: ${tokens.mkString(" ")}")
         new Parser(tokens).parse() match {
-        case Valid(expr) =>
-//          println(s"expr: ${ExprPrinter.print(expr)}")
-          Interpreter.interprete(expr) match {
+        case Valid(stmts) =>
+          Interpreter.interprete(stmts) match {
             case Valid(r) =>
             case Invalid(r) => printRuntimeErr(r)
           }
@@ -64,9 +64,9 @@ object Lox {
     }
   }
 
-  private def printParserErr(err: NonEmptyList[String]): Unit = {
+  private def printParserErr(err: NonEmptyList[ParserError]): Unit = {
     err.toList.foreach { error =>
-      System.err.println(s"Parse error: $error")
+      System.err.println(s"Parser error: ${error.message} at line ${error.token.line}")
     }
   }
 

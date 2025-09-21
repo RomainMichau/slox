@@ -1,6 +1,6 @@
 package com.rokim.lox
 
-import cats.data.ValidatedNel
+import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.implicits.*
 
 object Interpreter {
@@ -24,35 +24,41 @@ object Interpreter {
 
 
   def interprete(stmts: Seq[Stmt]) : ValidatedNel[InterpreterRuntimeError, Any] = {
-    evaluate(stmts)
+    val env = new Environment()
+    evaluate(stmts, env)
   }
 
-  private def evaluate(stmts: Seq[Stmt]): ValidatedNel[InterpreterRuntimeError, Any] = {
+  private def evaluate(stmts: Seq[Stmt], env: Environment): ValidatedNel[InterpreterRuntimeError, Any] = {
     stmts.foldLeft[ValidatedNel[InterpreterRuntimeError, Any]](().validNel) { (acc, stmt) =>
       acc.andThen { _ =>
         stmt match {
-          case Expression(expr) => evaluate(expr).map(_ => ())
-          case Print(expr) => evaluate(expr).map { value =>
+          case Expression(expr) => evaluate(expr, env).map(_ => ())
+          case Print(expr) => evaluate(expr, env).map { value =>
             println(stringify(value))
             ()
           }
+          case Var(name, value) =>
+            value match {
+              case None => env.define(name, null).validNel
+              case Some(v) => evaluate(v, env).map(env.define(name, _))
+            }
         }
       }
     }
   }
   
-  private def evaluate(expr: Expr): ValidatedNel[InterpreterRuntimeError, Any] = {
+  private def evaluate(expr: Expr, env: Environment): ValidatedNel[InterpreterRuntimeError, Any] = {
     expr match {
       case Literal(value) => value.validNel
-      case Grouping(expr) => evaluate(expr)
+      case Grouping(expr) => evaluate(expr, env)
       case Unary(operator, right) => operator match {
-        case MINUS(_) => evaluate(right).map(r => -r.asInstanceOf[Double])
-        case BANG(_) => evaluate(right).map(r => !isTruthy(r))
+        case MINUS(_) => evaluate(right, env).map(r => -r.asInstanceOf[Double])
+        case BANG(_) => evaluate(right, env).map(r => !isTruthy(r))
       }
 
       case Binary(leftEx, operator, rightEx) =>
-        val leftAna = evaluate(leftEx)
-        val rightAna = evaluate(rightEx)
+        val leftAna = evaluate(leftEx, env)
+        val rightAna = evaluate(rightEx, env)
         operator match {
           case op: MINUS => (leftAna, rightAna).tupled.andThen {
             case (l: Double, r: Double) => (l - r).validNel
@@ -95,6 +101,16 @@ object Interpreter {
           case _: EQUAL_EQUAL => (leftAna, rightAna).mapN((left, right) =>
             left == right)
         }
+      case Variable(name) => env.get(name) match {
+        case Some(value) => value.validNel
+        case None => InterpreterRuntimeError(name, s"Unkown var ${name.lexeme}").invalidNel
+      }
+      case Assign(name, valueExpr) => evaluate(valueExpr, env).andThen{value =>
+        env.assign(name, value) match {
+          case _: true => value.validNel
+          case _: false => InterpreterRuntimeError(name, s"Unkown var ${name.lexeme}").invalidNel
+        }
+      }
     }
   }
 }

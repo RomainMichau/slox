@@ -10,6 +10,10 @@ case class Literal(value: Any) extends Expr
 
 case class Unary(operator: UnaryOperatorToken, right: Expr) extends Expr
 
+case class Assign(name: IDENTIFIER, value: Expr) extends Expr
+
+case class Variable(name: IDENTIFIER) extends Expr
+
 object ExprPrinter {
   private def parenthesize(name: String, expr: Expr*): String = {
     s"($name ${expr.map(print).mkString(" ")})"
