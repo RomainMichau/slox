@@ -169,14 +169,14 @@ class ScannerSuite extends munit.FunSuite {
         fail(s"Expected valid tokens but got errors: $errors")
     }
   }
-  
-  test("int number"){
+
+  test("int number") {
     val source = "123"
     val result = Scanner.scan(source)
-    
+
     result match {
-      case Valid(NUMBER("123", 0, 123):: Nil) =>
-      case b => fail(s"Expected valid number not $b")
+      case Valid(NUMBER("123", 0, 123) :: Nil) =>
+      case b                                   => fail(s"Expected valid number not $b")
     }
   }
 
@@ -186,7 +186,7 @@ class ScannerSuite extends munit.FunSuite {
 
     result match {
       case Valid(NUMBER("123.456", 0, 123.456) :: Nil) =>
-      case b => fail(s"Expected valid number not $b")
+      case b                                           => fail(s"Expected valid number not $b")
     }
   }
 

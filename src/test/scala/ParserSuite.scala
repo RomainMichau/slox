@@ -15,9 +15,9 @@ class ParserSuite extends munit.FunSuite {
           case Valid(stmts) if stmts.nonEmpty =>
             stmts.head match {
               case Expression(expr) => Valid(expr)
-              case other => ParserError(EOF(1), s"Expected expression statement, got: $other").invalidNel
+              case other            => ParserError(EOF(1), s"Expected expression statement, got: $other").invalidNel
             }
-          case Valid(_) => ParserError(EOF(1), "No statements parsed").invalidNel
+          case Valid(_)        => ParserError(EOF(1), "No statements parsed").invalidNel
           case Invalid(errors) => Invalid(errors)
         }
       case Invalid(errors) =>
@@ -29,7 +29,7 @@ class ParserSuite extends munit.FunSuite {
     val result = parseExpression("123")
     result match {
       case Valid(Literal(value)) => assertEquals(value.asInstanceOf[Double], 123.0)
-      case other => fail(s"Expected literal number, got: $other")
+      case other                 => fail(s"Expected literal number, got: $other")
     }
   }
 
@@ -37,7 +37,7 @@ class ParserSuite extends munit.FunSuite {
     val result = parseExpression("\"hello\"")
     result match {
       case Valid(Literal(value)) => assertEquals(value, "hello")
-      case other => fail(s"Expected literal string, got: $other")
+      case other                 => fail(s"Expected literal string, got: $other")
     }
   }
 
@@ -45,13 +45,13 @@ class ParserSuite extends munit.FunSuite {
     val trueResult = parseExpression("true")
     trueResult match {
       case Valid(Literal(value)) => assertEquals(value, true)
-      case other => fail(s"Expected literal true, got: $other")
+      case other                 => fail(s"Expected literal true, got: $other")
     }
 
     val falseResult = parseExpression("false")
     falseResult match {
       case Valid(Literal(value)) => assertEquals(value, false)
-      case other => fail(s"Expected literal false, got: $other")
+      case other                 => fail(s"Expected literal false, got: $other")
     }
   }
 
@@ -59,7 +59,7 @@ class ParserSuite extends munit.FunSuite {
     val result = parseExpression("nil")
     result match {
       case Valid(Literal(value)) => assertEquals(value, null)
-      case other => fail(s"Expected literal nil, got: $other")
+      case other                 => fail(s"Expected literal nil, got: $other")
     }
   }
 
@@ -67,7 +67,7 @@ class ParserSuite extends munit.FunSuite {
     val result = parseExpression("(123)")
     result match {
       case Valid(Grouping(Literal(value))) => assertEquals(value.asInstanceOf[Double], 123.0)
-      case other => fail(s"Expected grouped literal, got: $other")
+      case other                           => fail(s"Expected grouped literal, got: $other")
     }
   }
 
@@ -156,11 +156,13 @@ class ParserSuite extends munit.FunSuite {
   test("complex nested expressions") {
     val result = parseExpression("(1 + 2) * (3 - 4)")
     result match {
-      case Valid(Binary(
-        Grouping(Binary(Literal(a), plus: PLUS, Literal(b))),
-        star: STAR,
-        Grouping(Binary(Literal(c), minus: MINUS, Literal(d)))
-      )) =>
+      case Valid(
+            Binary(
+              Grouping(Binary(Literal(a), plus: PLUS, Literal(b))),
+              star: STAR,
+              Grouping(Binary(Literal(c), minus: MINUS, Literal(d)))
+            )
+          ) =>
         assertEquals(a.asInstanceOf[Double], 1.0)
         assertEquals(b.asInstanceOf[Double], 2.0)
         assertEquals(c.asInstanceOf[Double], 3.0)

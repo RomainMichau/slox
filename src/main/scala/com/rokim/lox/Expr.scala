@@ -15,27 +15,28 @@ case class Assign(name: IDENTIFIER, value: Expr) extends Expr
 case class Variable(name: IDENTIFIER) extends Expr
 
 object ExprPrinter {
-  private def parenthesize(name: String, expr: Expr*): String = {
+  private def parenthesize(name: String, expr: Expr*): String =
     s"($name ${expr.map(print).mkString(" ")})"
-  }
 
   def print(expr: Expr): String = expr match
     case Binary(left, token, right) => parenthesize(token.lexeme, left, right)
-    case Grouping(expr) => parenthesize("group", expr)
-    case Literal(value) => value.toString
-    case Unary(operator, right) => parenthesize(operator.lexeme, right)
-    case Assign(name, value) => parenthesize(s"assign ${name.lexeme}", value)
-    case Variable(i) => parenthesize(s"var ${i.lexeme}")
+    case Grouping(expr)             => parenthesize("group", expr)
+    case Literal(value)             => value.toString
+    case Unary(operator, right)     => parenthesize(operator.lexeme, right)
+    case Assign(name, value)        => parenthesize(s"assign ${name.lexeme}", value)
+    case Variable(i)                => parenthesize(s"var ${i.lexeme}")
 }
-
-
-
 
 object MainTest {
   def main(args: Array[String]): Unit = {
-    val expr = Binary(Unary(
-      MINUS(0), Literal(123)
-    ), STAR(0), Grouping(Literal(45.67)))
+    val expr = Binary(
+      Unary(
+        MINUS(0),
+        Literal(123)
+      ),
+      STAR(0),
+      Grouping(Literal(45.67))
+    )
     println(ExprPrinter.print(expr))
   }
 }

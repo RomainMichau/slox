@@ -13,6 +13,9 @@ lazy val root = project
       "-Werror"
     ),
 
+    // Check formatting in CI/compile
+    Compile / compile := (Compile / compile).dependsOn(scalafmtCheckAll).value,
+
     libraryDependencies ++= Seq(
       "org.scalameta" %% "munit" % "1.0.0" % Test,
       "org.typelevel" %% "cats-core" % "2.12.0"

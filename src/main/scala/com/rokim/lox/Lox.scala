@@ -8,7 +8,6 @@ import com.rokim.lox.Parser.ParserError
 import scala.io.{Source, StdIn}
 import scala.util.{Try, Using}
 
-
 case class LoxError(line: Int, where: String, message: String) {
   println(s"[line $line] Error $where : $message")
 }
@@ -17,7 +16,7 @@ object Lox {
   def main(args: Array[String]): Unit = {
     args.toList match {
       case path :: Nil => runFile(path)
-      case _ => runPrompt()
+      case _           => runPrompt()
     }
   }
 
@@ -41,19 +40,18 @@ object Lox {
     loop()
   }
 
-
   def run(source: String): Unit = {
     Scanner.scan(source) match {
       case Valid(tokens) =>
         println(s"Tokens: ${tokens.mkString(" ")}")
         new Parser(tokens).parse() match {
-        case Valid(stmts) =>
-          Interpreter.interprete(stmts) match {
-            case Valid(_) =>
-            case Invalid(r) => printRuntimeErr(r)
-          }
-        case Invalid(e) => printParserErr(e)
-      }
+          case Valid(stmts) =>
+            Interpreter.interprete(stmts) match {
+              case Valid(_)   =>
+              case Invalid(r) => printRuntimeErr(r)
+            }
+          case Invalid(e) => printParserErr(e)
+        }
       case Invalid(e) => printScannerErr(e)
     }
   }
@@ -72,8 +70,10 @@ object Lox {
 
   private def printRuntimeErr(err: NonEmptyList[InterpreterRuntimeError]): Unit = {
     err.toList.foreach { error =>
-      System.err.println(error.message +
-        "\n[line " + error.token.line + "]")
+      System.err.println(
+        error.message +
+          "\n[line " + error.token.line + "]"
+      )
     };
   }
 

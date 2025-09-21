@@ -11,44 +11,30 @@ object Parser {
   case class ParserError(token: Token, message: String)
 
   type ExpressionParsing = ValidatedNel[ParserError, Expr]
-  type StmtsParsing = ValidatedNel[ParserError, Seq[Stmt]]
-  type StmtParsing = ValidatedNel[ParserError, Stmt]
+  type StmtsParsing      = ValidatedNel[ParserError, Seq[Stmt]]
+  type StmtParsing       = ValidatedNel[ParserError, Stmt]
 }
 
 class Parser(tokens: Seq[Token]) {
   private type TokenMatcher[T] = PartialFunction[Token, Option[T]]
   private var current = 0
 
-  def parserError(message: String): ParserError = {
+  def parserError(message: String): ParserError =
     ParserError(peek, message)
-  }
 
   /**
    * Grammar Rules:
    *
-   * program        → statement* EOF ;
-   * declaration    → varDecl
-   * | statement ;
-   * varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
-   * statement      → exprStmt
-   * | printStmt
-   * | block ;
-   * block ->       "{" -> declaration* "}"
-   * exprStmt       → expression ";" ;
-   * printStmt      → "print" expression ";" ;
-   * expression     → assignment ;
-   * assignment     → IDENTIFIER "=" assignment
-   * | equality ;
-   * equality       → comparison ( ("!=" | "==") comparison )* ;
-   * comparison     → term ( (">" | ">=" | "<" | "<=") term )* ;
-   * term           → factor ( ("-" | "+") factor )* ;
-   * factor         → unary ( ("/" | "*") unary )* ;
-   * unary          → ("!" | "-") unary
-   * | primary ;
-   * primary        → NUMBER | STRING | "true" | "false" | "nil"
-   * | "(" expression ")" | IDENTIFIER ;
+   * program → statement* EOF ; declaration → varDecl
+   * \| statement ; varDecl → "var" IDENTIFIER ( "=" expression )? ";" ; statement → exprStmt
+   * \| printStmt
+   * \| block ; block -> "{" -> declaration* "}" exprStmt → expression ";" ; printStmt → "print" expression ";" ;
+   * expression → assignment ; assignment → IDENTIFIER "=" assignment
+   * \| equality ; equality → comparison ( ("!=" | "==") comparison )* ; comparison → term ( (">" | ">=" | "<" | "<=")
+   * term )* ; term → factor ( ("-" | "+") factor )* ; factor → unary ( ("/" | "*") unary )* ; unary → ("!" | "-") unary
+   * \| primary ; primary → NUMBER | STRING | "true" | "false" | "nil"
+   * \| "(" expression ")" | IDENTIFIER ;
    */
-
 
   def parse(): StmtsParsing = {
     def loop(): StmtsParsing = {
@@ -72,9 +58,9 @@ class Parser(tokens: Seq[Token]) {
     def loop(): Unit = {
       advance()
       (previous(), peek) match {
-        case (_: SEMICOLON, _) =>
+        case (_: SEMICOLON, _)                                                                          =>
         case (_, _: CLASS | _: FUN | _: VAR_TKN | _: FOR | _: IF | _: WHILE | _: PRINT_TKN | _: RETURN) =>
-        case _ => if (!isAtEnd) loop()
+        case _                                                                                          => if (!isAtEnd) loop()
       }
     }
 
@@ -83,17 +69,16 @@ class Parser(tokens: Seq[Token]) {
 
   private def isAtEnd: Boolean = peek match {
     case EOF(_) => true
-    case _ => false
+    case _      => false
   }
 
   private def peek = tokens(current)
 
   private def previous() = tokens(current - 1)
 
-  private def check[T](matcher: TokenMatcher[T]): Option[T] = {
+  private def check[T](matcher: TokenMatcher[T]): Option[T] =
     if (isAtEnd) None
     else matcher.applyOrElse(peek, _ => None)
-  }
 
   private def advance(): Token = {
     if (!isAtEnd) current += 1
@@ -109,31 +94,34 @@ class Parser(tokens: Seq[Token]) {
 
   private def consume[T](matcher: TokenMatcher[T], expect: String): ValidatedNel[ParserError, T] = {
     check(matcher) match {
-      case Some(t) => advance()
+      case Some(t) =>
+        advance()
         Valid(t)
       case None => parserError(expect).invalidNel
     }
   }
 
   private def declaration(): StmtParsing = {
-    matchToken({ case _: VAR_TKN => Some(()) })
+    matchToken { case _: VAR_TKN => Some(()) }
       .map(_ => varDeclaration())
       .getOrElse(statement())
   }
 
   private def statement(): StmtParsing = {
-    matchToken({ case a@(_: PRINT_TKN | _: LEFT_BRACE) => Some(a) }) match {
-      case Some(PRINT_TKN(_)) => printStatement()
+    matchToken { case a @ (_: PRINT_TKN | _: LEFT_BRACE) => Some(a) } match {
+      case Some(PRINT_TKN(_))  => printStatement()
       case Some(LEFT_BRACE(_)) => block()
-      case _ => expressionStatement()
+      case _                   => expressionStatement()
     }
   }
 
   private def block(): StmtParsing = {
     def loop(): ValidatedNel[ParserError, Block] = {
-      matchToken({ case t: RIGHT_BRACE => Some(t) }).map { _ =>
-        Block(Seq.empty).validNel
-      }.getOrElse(declaration().andThen { dec => loop().map { l => l.copy(statements = dec +: l.statements) } })
+      matchToken { case t: RIGHT_BRACE => Some(t) }
+        .map { _ =>
+          Block(Seq.empty).validNel
+        }
+        .getOrElse(declaration().andThen(dec => loop().map(l => l.copy(statements = dec +: l.statements))))
     }
 
     loop().map(r => r.copy(r.statements))
@@ -141,59 +129,63 @@ class Parser(tokens: Seq[Token]) {
 
   private def printStatement(): StmtParsing = {
     expression().andThen { expr =>
-      consume({
-        case _: SEMICOLON => Some(SEMICOLON)
-      }, "Expect ';' after value.").map(_ => Print(expr))
+      consume(
+        { case _: SEMICOLON =>
+          Some(SEMICOLON)
+        },
+        "Expect ';' after value."
+      ).map(_ => Print(expr))
     }
   }
 
   private def expressionStatement(): StmtParsing = {
     expression().andThen(expr =>
-      consume({ case t: SEMICOLON => Some(t) }, "Expect ';' after value.").map(_ =>
-        Expression(expr)
-      )
+      consume({ case t: SEMICOLON => Some(t) }, "Expect ';' after value.").map(_ => Expression(expr))
     )
   }
 
-  private def expression(): ExpressionParsing = {
+  private def expression(): ExpressionParsing =
     assignment()
-  }
 
   private def assignment(): ExpressionParsing = {
     equality().andThen { expr =>
-      matchToken({ case e: EQUAL => Some(e) }).map { equals =>
-        assignment().andThen { value =>
-          expr match {
-            case Variable(name) => Assign(name, value).validNel
-            case _ => ParserError(equals, "Invalid assignement").invalidNel
+      matchToken { case e: EQUAL => Some(e) }
+        .map { equals =>
+          assignment().andThen { value =>
+            expr match {
+              case Variable(name) => Assign(name, value).validNel
+              case _              => ParserError(equals, "Invalid assignement").invalidNel
+            }
           }
         }
-      }.getOrElse(expr.validNel)
+        .getOrElse(expr.validNel)
     }
   }
 
   private def varDeclaration(): StmtParsing = {
-    consume({ case t: IDENTIFIER => Some(t) }, "expect var name").andThen { ident =>
-      matchToken({ case _: EQUAL => Some(()) }) match {
-        case Some(_) =>
-          expression().map(init => Var(ident, Some(init)))
-        case None => Var(ident).validNel
+    consume({ case t: IDENTIFIER => Some(t) }, "expect var name")
+      .andThen { ident =>
+        matchToken { case _: EQUAL => Some(()) } match {
+          case Some(_) =>
+            expression().map(init => Var(ident, Some(init)))
+          case None => Var(ident).validNel
+        }
       }
-    }.andThen(stmt =>
-      consume({ case t: SEMICOLON => Some(t) }, "Expect ';' after declaration.")
-        .as(stmt)
-    )
+      .andThen(stmt =>
+        consume({ case t: SEMICOLON => Some(t) }, "Expect ';' after declaration.")
+          .as(stmt)
+      )
   }
 
   private def equality(): ExpressionParsing = {
-    val matcher: TokenMatcher[BinaryOperatorToken] = {
-      case a@(_: BANG_EQUAL | _: EQUAL_EQUAL) => Some(a)
+    val matcher: TokenMatcher[BinaryOperatorToken] = { case a @ (_: BANG_EQUAL | _: EQUAL_EQUAL) =>
+      Some(a)
     }
 
     def loop(expr: Expr): ExpressionParsing = {
       matchToken(matcher) match {
         case Some(operator) => comparison().andThen(right => loop(Binary(expr, operator, right)))
-        case None => expr.validNel
+        case None           => expr.validNel
       }
     }
 
@@ -202,13 +194,13 @@ class Parser(tokens: Seq[Token]) {
 
   private def comparison(): ExpressionParsing = {
     val matcher: TokenMatcher[BinaryOperatorToken] = {
-      case a@(_: GREATER | _: GREATER_EQUAL | _: LESS | _: LESS_EQUAL) => Some(a)
+      case a @ (_: GREATER | _: GREATER_EQUAL | _: LESS | _: LESS_EQUAL) => Some(a)
     }
 
     def loop(expr: Expr): ExpressionParsing = {
       matchToken(matcher) match {
         case Some(operator) => term().andThen(right => loop(Binary(expr, operator, right)))
-        case None => expr.validNel
+        case None           => expr.validNel
       }
     }
 
@@ -216,14 +208,14 @@ class Parser(tokens: Seq[Token]) {
   }
 
   private def term(): ExpressionParsing = {
-    val matcher: TokenMatcher[BinaryOperatorToken] = {
-      case a@(_: MINUS | _: PLUS) => Some(a)
+    val matcher: TokenMatcher[BinaryOperatorToken] = { case a @ (_: MINUS | _: PLUS) =>
+      Some(a)
     }
 
     def loop(expr: Expr): ExpressionParsing = {
       matchToken(matcher) match {
         case Some(operator) => factor().andThen(right => loop(Binary(expr, operator, right)))
-        case None => expr.validNel
+        case None           => expr.validNel
       }
     }
 
@@ -231,14 +223,14 @@ class Parser(tokens: Seq[Token]) {
   }
 
   private def factor(): ExpressionParsing = {
-    val matcher: TokenMatcher[BinaryOperatorToken] = {
-      case a@(_: STAR | _: SLASH) => Some(a)
+    val matcher: TokenMatcher[BinaryOperatorToken] = { case a @ (_: STAR | _: SLASH) =>
+      Some(a)
     }
 
     def loop(expr: Expr): ExpressionParsing = {
       matchToken(matcher) match {
         case Some(operator) => unary().andThen(right => loop(Binary(expr, operator, right)))
-        case None => expr.validNel
+        case None           => expr.validNel
       }
     }
 
@@ -246,35 +238,36 @@ class Parser(tokens: Seq[Token]) {
   }
 
   private def unary(): ExpressionParsing = {
-    val matcher: TokenMatcher[UnaryOperatorToken] = {
-      case a@(_: BANG | _: MINUS) => Some(a)
+    val matcher: TokenMatcher[UnaryOperatorToken] = { case a @ (_: BANG | _: MINUS) =>
+      Some(a)
     }
 
     matchToken(matcher) match {
       case Some(operator) => unary().map(right => Unary(operator, right))
-      case None => primary()
+      case None           => primary()
     }
   }
 
   private def primary(): ExpressionParsing = {
     val matcher: TokenMatcher[Token] = {
-      case a@(_: NUMBER | _: STRING | _: FALSE | _: TRUE | _: NIL | _: LEFT_PAREN | _: IDENTIFIER) => Some(a)
+      case a @ (_: NUMBER | _: STRING | _: FALSE | _: TRUE | _: NIL | _: LEFT_PAREN | _: IDENTIFIER) => Some(a)
     }
 
     matchToken(matcher) match {
-      case Some(token) => token match {
-        case NUMBER(_, _, value) => Literal(value).validNel
-        case STRING(_, _, value) => Literal(value).validNel
-        case _: FALSE => Literal(false).validNel
-        case _: TRUE => Literal(true).validNel
-        case _: NIL => Literal(null).validNel
-        case i: IDENTIFIER => Variable(i).validNel
-        case _: LEFT_PAREN =>
-          expression().andThen(expr =>
-            consume({ case a: RIGHT_PAREN => Some(a) }, "Expect ')' after expression.").map(_ => Grouping(expr))
-          )
-        case _ => parserError("Expect expression ?").invalidNel
-      }
+      case Some(token) =>
+        token match {
+          case NUMBER(_, _, value) => Literal(value).validNel
+          case STRING(_, _, value) => Literal(value).validNel
+          case _: FALSE            => Literal(false).validNel
+          case _: TRUE             => Literal(true).validNel
+          case _: NIL              => Literal(null).validNel
+          case i: IDENTIFIER       => Variable(i).validNel
+          case _: LEFT_PAREN =>
+            expression().andThen(expr =>
+              consume({ case a: RIGHT_PAREN => Some(a) }, "Expect ')' after expression.").map(_ => Grouping(expr))
+            )
+          case _ => parserError("Expect expression ?").invalidNel
+        }
       case None => parserError("Expect expression").invalidNel
     }
   }
