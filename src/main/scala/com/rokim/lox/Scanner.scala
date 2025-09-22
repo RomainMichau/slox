@@ -12,7 +12,7 @@ object Scanner {
     case "false"  => FALSE(line)
     case "for"    => FOR(line)
     case "fun"    => FUN(line)
-    case "if"     => IF(line)
+    case "if"     => IFTkn(line)
     case "nil"    => NIL(line)
     case "or"     => OR(line)
     case "print"  => PRINT_TKN(line)
@@ -21,7 +21,7 @@ object Scanner {
     case "this"   => THIS(line)
     case "true"   => TRUE(line)
     case "var"    => VAR_TKN(line)
-    case "while"  => WHILE(line)
+    case "while"  => WHILE_TKN(line)
     case _        => IDENTIFIER(lexeme, line)
   }
 

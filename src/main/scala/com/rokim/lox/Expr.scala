@@ -8,6 +8,8 @@ case class Grouping(expr: Expr) extends Expr
 
 case class Literal(value: Any) extends Expr
 
+case class Logical(left: Expr, op: LogicalOperatorToken, rigt: Expr) extends Expr
+
 case class Unary(operator: UnaryOperatorToken, right: Expr) extends Expr
 
 case class Assign(name: IDENTIFIER, value: Expr) extends Expr
@@ -25,6 +27,7 @@ object ExprPrinter {
     case Unary(operator, right)     => parenthesize(operator.lexeme, right)
     case Assign(name, value)        => parenthesize(s"assign ${name.lexeme}", value)
     case Variable(i)                => parenthesize(s"var ${i.lexeme}")
+    case com.rokim.lox.Logical(_, _, _) => ???
 }
 
 object MainTest {

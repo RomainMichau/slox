@@ -197,7 +197,7 @@ class ScannerSuite extends munit.FunSuite {
     result match {
       case Valid(tokens) =>
         assertEquals(tokens.size, 3)
-        assertEquals(tokens.head, IF(0))
+        assertEquals(tokens.head, IFTkn(0))
         assertEquals(tokens(1), ELSE(0))
         assertEquals(tokens(2), VAR_TKN(0))
       case cats.data.Validated.Invalid(errors) =>
@@ -226,7 +226,7 @@ class ScannerSuite extends munit.FunSuite {
     result match {
       case Valid(tokens) =>
         assertEquals(tokens.size, 3)
-        assertEquals(tokens.head, IF(0))
+        assertEquals(tokens.head, IFTkn(0))
         assertEquals(tokens(1), IDENTIFIER("myVar", 0))
         assertEquals(tokens(2), ELSE(0))
       case cats.data.Validated.Invalid(errors) =>

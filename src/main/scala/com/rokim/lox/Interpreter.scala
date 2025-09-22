@@ -31,6 +31,16 @@ object Interpreter {
   private def execute(stmt: Stmt, env: Environment): ValidatedNel[InterpreterRuntimeError, Any] =
     execute(Seq(stmt), env)
 
+  private def executeWhile(whileStmt: While, env: Environment): ValidatedNel[InterpreterRuntimeError, Any] = {
+    def loop(): ValidatedNel[InterpreterRuntimeError, Any] = {
+      evaluate(whileStmt.condition, env).map(isTruthy).andThen {
+        case true => execute(whileStmt.body, env).andThen(_ => loop())
+        case false => ().validNel
+      }
+    }
+    loop()
+  }
+  
   private def execute(stmts: Seq[Stmt], env: Environment): ValidatedNel[InterpreterRuntimeError, Any] = {
     stmts.foldLeft[ValidatedNel[InterpreterRuntimeError, Any]](().validNel) { (acc, stmt) =>
       acc.andThen { _ =>
@@ -47,10 +57,15 @@ object Interpreter {
               case Some(v) => evaluate(v, env).map(env.define(name, _))
             }
           case b: Block => executeBlock(b, env)
+          case If(condExpr, trueBranch, leftBranch) => evaluate(condExpr, env).andThen {
+            case a if isTruthy(a) => execute(trueBranch, env)
+            case _ => leftBranch.map(execute(_, env)).getOrElse(().validNel)
+          }
+          case whileStmt: While => executeWhile(whileStmt, env)
+          }
         }
       }
     }
-  }
 
   private def executeBlock(block: Block, parentEnv: Environment): ValidatedNel[InterpreterRuntimeError, Any] = {
     val newEnv = parentEnv.childEnv()
@@ -66,6 +81,16 @@ object Interpreter {
     expr match {
       case Literal(value) => value.validNel
       case Grouping(expr) => evaluate(expr, env)
+      case Logical(leftEx, AND(_), rightEx) => evaluate(leftEx, env).map(isTruthy)
+        .andThen{
+          case true => evaluate(rightEx, env).map{right => isTruthy(right)}
+          case false => false.validNel
+      }
+      case Logical(leftEx, OR(_), rightEx) => evaluate(leftEx, env).map(isTruthy)
+        .andThen{
+          case false => evaluate(rightEx, env).map{right => isTruthy(right)}
+          case true => true.validNel
+        }
       case Unary(operator, right) =>
         operator match {
           case MINUS(_) => evaluate(right, env).map(r => -r.asInstanceOf[Double])

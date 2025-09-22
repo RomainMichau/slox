@@ -22,19 +22,44 @@ class Parser(tokens: Seq[Token]) {
   def parserError(message: String): ParserError =
     ParserError(peek, message)
 
+  // format: off
   /**
    * Grammar Rules:
    *
-   * program → statement* EOF ; declaration → varDecl
-   * \| statement ; varDecl → "var" IDENTIFIER ( "=" expression )? ";" ; statement → exprStmt
-   * \| printStmt
-   * \| block ; block -> "{" -> declaration* "}" exprStmt → expression ";" ; printStmt → "print" expression ";" ;
-   * expression → assignment ; assignment → IDENTIFIER "=" assignment
-   * \| equality ; equality → comparison ( ("!=" | "==") comparison )* ; comparison → term ( (">" | ">=" | "<" | "<=")
-   * term )* ; term → factor ( ("-" | "+") factor )* ; factor → unary ( ("/" | "*") unary )* ; unary → ("!" | "-") unary
-   * \| primary ; primary → NUMBER | STRING | "true" | "false" | "nil"
-   * \| "(" expression ")" | IDENTIFIER ;
+   * program     → statement* EOF ;
+   * declaration → varDecl
+   *             | statement ;
+   * varDecl     → "var" IDENTIFIER ( "=" expression )? ";" ;
+   * statement   → exprStmt
+   *             | ifStmt
+   *             | printStmt
+   *             | block
+   *             | whileStmt
+   *             | forStmt;
+   * forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
+   * expression? ";"
+   * expression? ")" statement ;
+   * whileStmt   → "while" "(" expression ")" statement ;
+   * ifStmt      → "if" "(" expression ")" statement
+   *               ( "else" statement )? ;
+   * block       → "{" declaration* "}" ;
+   * exprStmt    → expression ";" ;
+   * printStmt   → "print" expression ";" ;
+   * expression  → assignment ;
+   * assignment  → IDENTIFIER "=" assignment
+   *             | logic_or ;
+   * logic_or    → logic_and ( "or" logic_and )* ;
+   * logic_and   → equality ( "and" equality )* ;
+   * equality    → comparison ( ("!=" | "==") comparison )* ;
+   * comparison  → term ( (">" | ">=" | "<" | "<=") term )* ;
+   * term        → factor ( ("-" | "+") factor )* ;
+   * factor      → unary ( ("/" | "*") unary )* ;
+   * unary       → ("!" | "-") unary
+   *             | primary ;
+   * primary     → NUMBER | STRING | "true" | "false" | "nil"
+   *             | "(" expression ")" | IDENTIFIER ;
    */
+  // format: on
 
   def parse(): StmtsParsing = {
     def loop(): StmtsParsing = {
@@ -59,7 +84,7 @@ class Parser(tokens: Seq[Token]) {
       advance()
       (previous(), peek) match {
         case (_: SEMICOLON, _)                                                                          =>
-        case (_, _: CLASS | _: FUN | _: VAR_TKN | _: FOR | _: IF | _: WHILE | _: PRINT_TKN | _: RETURN) =>
+        case (_, _: CLASS | _: FUN | _: VAR_TKN | _: FOR | _: IFTkn | _: WHILE_TKN | _: PRINT_TKN | _: RETURN) =>
         case _                                                                                          => if (!isAtEnd) loop()
       }
     }
@@ -101,6 +126,10 @@ class Parser(tokens: Seq[Token]) {
     }
   }
 
+  private def consumeSemicolon(): ValidatedNel[ParserError, SEMICOLON] = {
+    consume({ case t: SEMICOLON => Some(t) }, "Expect ';'")
+  }
+
   private def declaration(): StmtParsing = {
     matchToken { case _: VAR_TKN => Some(()) }
       .map(_ => varDeclaration())
@@ -108,11 +137,80 @@ class Parser(tokens: Seq[Token]) {
   }
 
   private def statement(): StmtParsing = {
-    matchToken { case a @ (_: PRINT_TKN | _: LEFT_BRACE) => Some(a) } match {
+    matchToken { case a @ (_: PRINT_TKN | _: LEFT_BRACE | _: IFTkn |_: WHILE_TKN |_: FOR) => Some(a) } match {
       case Some(PRINT_TKN(_))  => printStatement()
       case Some(LEFT_BRACE(_)) => block()
+      case Some(IFTkn(_)) => ifStmt()
+      case Some(WHILE_TKN(_)) => whileStmt()
+      case Some(FOR(_)) => forStmt()
       case _                   => expressionStatement()
     }
+  }
+
+  private def forStmt(): StmtParsing = {
+    def getVarDeclOrExprStmt(): StmtParsing = {
+      check({case t: Var => Some(t)}) match {
+        case None => expressionStatement()
+        case Some(_) => varDeclaration()
+      }
+    }
+
+    def getLastPart[T](x: () => T): Option[T] = {
+      val res = check({ case t: RIGHT_PAREN => Some(t) }) match {
+        case None => Some(x())
+        case Some(_) => None
+      }
+      consume({ case t: RIGHT_PAREN => Some(t) }, "Expect { after `for`")
+      res
+    }
+
+    def getForPart[T](x: () => T): Option[T] = {
+      val res = matchToken({ case t: SEMICOLON => Some(t) }) match {
+        case None => Some(x())
+        case Some(_) => None
+      }
+      consumeSemicolon()
+      res
+    }
+    consume({case t: LEFT_PAREN => Some(t)}, "expect left parent after for")
+      .andThen{_ =>
+        val maybeInit = getForPart(getVarDeclOrExprStmt)
+        val maybeCond = getForPart(expression)
+        val maybeIncrement = getLastPart(expression)
+
+
+    }
+  }
+
+  private def whileStmt(): StmtParsing = {
+    consume({ case t: LEFT_PAREN => Some(t)}, "expect ( after `while`").andThen{ _ =>
+      expression().andThen{cond =>
+        consume({ case t: RIGHT_PAREN => Some(t)}, "expect ) after `while`").andThen{_ =>
+          statement().map{ st =>
+            While(cond, st)
+          }
+        }
+      }
+    }
+  }
+
+
+  private def ifStmt(): StmtParsing = {
+    consume({ case t: LEFT_PAREN => Some(t)}, "expect ( after `if`")
+      .andThen{_ =>
+        expression().andThen{condition =>
+          consume({ case t: RIGHT_PAREN => Some(t)}, "expect ) after `if`")
+            .andThen{_ =>
+              statement().andThen { ifTrue =>
+                matchToken({case t: ELSE => Some(t)}).map{_ =>
+                  statement().map{
+                    elseS => If(condition, ifTrue, Some(elseS))
+                  }
+                }.getOrElse(If(condition, ifTrue, None).validNel)
+              }
+          }
+        }
+      }
   }
 
   private def block(): StmtParsing = {
@@ -140,7 +238,7 @@ class Parser(tokens: Seq[Token]) {
 
   private def expressionStatement(): StmtParsing = {
     expression().andThen(expr =>
-      consume({ case t: SEMICOLON => Some(t) }, "Expect ';' after value.").map(_ => Expression(expr))
+      consume({ case t: SEMICOLON => Some(t) }, "Expect ';' after value._").map(_ => Expression(expr))
     )
   }
 
@@ -148,7 +246,7 @@ class Parser(tokens: Seq[Token]) {
     assignment()
 
   private def assignment(): ExpressionParsing = {
-    equality().andThen { expr =>
+    or().andThen { expr =>
       matchToken { case e: EQUAL => Some(e) }
         .map { equals =>
           assignment().andThen { value =>
@@ -161,6 +259,29 @@ class Parser(tokens: Seq[Token]) {
         .getOrElse(expr.validNel)
     }
   }
+
+  private def or(): ExpressionParsing = {
+    def loop(left: Expr): ExpressionParsing = {
+      matchToken({ case t: OR => Some(t) }).map { or =>
+        and().andThen { right =>
+          loop(Logical(left, or, right))
+        }
+      }.getOrElse(left.validNel)
+    }
+    and().andThen(loop)
+  }
+
+  private def and(): ExpressionParsing = {
+    def loop(left: Expr): ExpressionParsing = {
+      matchToken({ case t: AND => Some(t) }).map { and =>
+        equality().andThen { right =>
+          loop(Logical(left, and, right))
+        }
+      }.getOrElse(left.validNel)
+    }
+    equality().andThen(loop)
+    }
+
 
   private def varDeclaration(): StmtParsing = {
     consume({ case t: IDENTIFIER => Some(t) }, "expect var name")
